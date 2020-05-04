@@ -18,6 +18,7 @@ use craft\commerce\models\Address;
 use craft\commerce\models\LineItem;
 use craft\commerce\models\ShippingMethod;
 use craft\commerce\Plugin as Commerce;
+use craft\commerce\services\TaxCategories;
 use craft\commerce\services\TaxRates;
 use craft\db\Query;
 use craft\errors\ElementNotFoundException;
@@ -72,12 +73,15 @@ class StripeService extends Component
 	 * @throws SiteNotFoundException
 	 * @throws Throwable
 	 */
-	public function buildOrder ($cartId, array $items = [], $save = false)
+	public function buildOrder ($cartId, array $items = null, $save = false)
 	{
 		$cartId = Json::decodeIfJson($cartId);
 
 		if ($cartId)
 			return Commerce::getInstance()->getOrders()->getOrderById($cartId);
+
+		if($items = null)
+		    throw new Exception("Cannot create cart in " .__METHOD__);
 
 		$craft = Craft::$app;
 		$elements = $craft->getElements();
@@ -144,82 +148,81 @@ class StripeService extends Component
 	 * @return array
 	 * @throws Exception
 	 */
+	public function orderToPaymentRequest (Order $order, $includeItems = false)
+	{
+		$items        = [];
+		$displayItems = [];
+		$total        = 0;
 
-    public function orderToPaymentRequest (Order $order, $includeItems = false)
-    {
-        $items        = [];
-        $displayItems = [];
-        $total        = 0;
+		$settings = WebPayments::getInstance()->getSettings();
+		$addTaxToPrice = $settings->applyTaxToLineItem === "1" ? true : false;
 
-        $settings = WebPayments::getInstance()->getSettings();
-        $addTaxToPrice = $settings->applyTaxToLineItem === "1" ? true : false;
+		$this->recalculate($order);
 
-        $this->recalculate($order);
+		foreach ($order->lineItems as $item)
+		{
+		    if($addTaxToPrice && $item->taxCategoryId){
+				$taxRate = new TaxRates();
+				$taxValue = $taxRate->getTaxRateById($item->taxCategoryId);
+				$amount = $item->purchasable->salePrice * (1 + $taxValue->rate) * $item->qty * 100;
+				$amount = round($amount);
+			}else {
+				$amount = $item->purchasable->salePrice * $item->qty * 100;
+			}
 
-        foreach ($order->lineItems as $item)
-        {
-            if($addTaxToPrice && $item->taxCategoryId){
-                $taxRate = new TaxRates();
-                $taxValue = $taxRate->getTaxRateById($item->taxCategoryId);
-                $amount = $item->purchasable->salePrice * (1 + $taxValue->rate) * $item->qty * 100;
-                $amount = round($amount);
-            }else {
-                $amount = $item->purchasable->salePrice * $item->qty * 100;
-            }
+			$items[] = [
+				'id' => $item->purchasableId,
+				'qty' => $item->qty,
+				'options' => $item->getOptions(),
+			];
 
-            $items[] = [
-                'id' => $item->purchasableId,
-                'qty' => $item->qty,
-                'options' => $item->getOptions(),
-            ];
-
-            $displayItems[] = [
-                'label'  => $item->purchasable->title ? $item->purchasable->title : $item->purchasable->description,
-                'amount' => $amount,
-            ];
-
-
-            $total += $amount;
-        }
-
-        foreach ($order->adjustments as $adjustment){
-            if($addTaxToPrice){
-                if($adjustment->type == 'tax'){
-                    continue;
-                }
-            }
-
-            if (!$adjustment->included)
-            {
-                $amount = $adjustment->amount * 100;
-
-                $displayItems[] = [
-                    'label'  => $adjustment->name,
-                    'amount' => $amount,
-                ];
-
-                $total += $amount;
-            }
-        }
+			$displayItems[] = [
+				'label'  => $item->purchasable->title ?? $item->purchasable->description,
+				'amount' => $amount,
+			];
 
 
-        $total = round($total);
+			$total += $amount;
+		}
 
-        $ret = [
-            'id'              => $order->id,
-            'displayItems'    => $displayItems,
-            'total'           => [
-                'label'  => Craft::t('commerce', 'Total'),
-                'amount' => $total,
-            ],
-            'shippingOptions' => $this->getShippingMethods($order),
-        ];
+		foreach ($order->adjustments as $adjustment){
+			if($addTaxToPrice){
+				if($adjustment->type == 'tax'){
+					continue;
+				}
+			}
 
-        if ($includeItems)
-            $ret['items'] = $items;
+			if (!$adjustment->included)
+			{
+				$amount = $adjustment->amount * 100;
 
-        return $ret;
-    }
+				$displayItems[] = [
+					'label'  => $adjustment->name,
+					'amount' => $amount,
+				];
+
+				$total += $amount;
+			}
+		}
+
+
+		$total = round($total);
+			
+		$ret = [
+			'id'              => $order->id,
+			'displayItems'    => $displayItems,
+			'total'           => [
+				'label'  => Craft::t('commerce', 'Total'),
+				'amount' => $total,
+			],
+			'shippingOptions' => $this->getShippingMethods($order),
+		];
+
+		if ($includeItems)
+			$ret['items'] = $items;
+
+		return $ret;
+	}
 
 	/**
 	 * Get the shipping methods (as Payment Request shipping options)
