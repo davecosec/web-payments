@@ -72,7 +72,7 @@ class StripeService extends Component
 	 * @throws SiteNotFoundException
 	 * @throws Throwable
 	 */
-	public function buildOrder ($cartId, array $items, $save = false)
+	public function buildOrder ($cartId, array $items = [], $save = false)
 	{
 		$cartId = Json::decodeIfJson($cartId);
 

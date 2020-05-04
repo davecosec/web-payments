@@ -44,7 +44,6 @@ class StripeController extends Controller
 	 */
 	public function actionUpdateDisplayItems ()
 	{
-		$this->requireAcceptsJson();
 		$this->requirePostRequest();
 
 		$request = Craft::$app->getRequest();
