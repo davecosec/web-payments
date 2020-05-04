@@ -28,8 +28,8 @@ class Settings extends Model
 	/** @var string Should we request shipping details? */
 	public $requestShipping = 'no';
 
-    /** @var string merge tax? */
-    public $applyTaxToLineItem;
+	/** @var string merge tax? */
+	public $applyTaxToLineItem;
 
 	/** @var string[] Additional details to request */
 	public $requestDetails = [];
