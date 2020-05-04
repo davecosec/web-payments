@@ -44,6 +44,7 @@ class StripeController extends Controller
 	 */
 	public function actionUpdateDisplayItems ()
 	{
+		$this->requireAcceptsJson();
 		$this->requirePostRequest();
 
 		$request = Craft::$app->getRequest();
@@ -117,7 +118,6 @@ class StripeController extends Controller
 	 */
 	public function actionUpdateShipping ()
 	{
-		$this->requireAcceptsJson();
 		$this->requirePostRequest();
 
 		$request = Craft::$app->getRequest();
@@ -185,7 +185,7 @@ class StripeController extends Controller
 		);
 
 		$items = Json::decodeIfJson(
-			$request->getRequiredBodyParam('items'),
+			$request->getBodyParam('items'),
 			true
 		);
 
