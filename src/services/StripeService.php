@@ -157,7 +157,7 @@ class StripeService extends Component
 
         foreach ($order->lineItems as $item)
         {
-            if($addTaxToPrice && $item->taxCategoryId){
+            if($addTaxToPrice){
                 $taxRate = new TaxRates();
                 $taxValue = $taxRate->getTaxRateById($item->taxCategoryId);
                 $amount = $item->purchasable->salePrice * (1 + $taxValue->rate) * $item->qty * 100;
