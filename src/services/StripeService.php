@@ -162,7 +162,7 @@ class StripeService extends Component
 			];
 
 			$displayItems[] = [
-				'label'  => $item->purchasable->title,
+				'label'  => $item->purchasable->title ? $item->purchasable->title : $item->purchasable->description,
 				'amount' => $amount,
 			];
 
