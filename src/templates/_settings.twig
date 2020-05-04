@@ -1,4 +1,4 @@
-{% from '_includes/forms' import field, select, selectField, checkboxGroupField %}
+{% from '_includes/forms' import field, select, selectField, checkbox, checkboxGroupField %}
 
 {{ selectField({
 	first: true,
@@ -33,6 +33,16 @@
 	},
 	values: settings.requestDetails,
 }) }}
+
+
+<hr>
+ {{ checkbox({
+        label: 'Apply Tax To Line Items',
+		instructions: 'Apply the tax to each line item in cart as opposed to seperately'|t('web-payments'),	
+        name: 'applyTaxToLineItem',
+        id: 'applyTaxToLineItem',
+        checked: settings.applyTaxToLineItem,
+ }) }}
 
 {% set requestDetailsFields %}
 	<table class="data fullwidth collapsible">
